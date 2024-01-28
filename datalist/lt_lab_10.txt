@@ -3,6 +3,3 @@ lung_003
 lung_004
 lung_005
 lung_006
-lung_009
-lung_010
-lung_014
