@@ -68,7 +68,7 @@ pred_step = 10
 
 r18 = False
 dataset_name = 'unidataset'
-data_root = '/data/userdisk1/qjzeng/semi_seg/UniSSM/preprocess/data'
+data_root = '/data/userdisk1/qjzeng/semi_seg/VerSemi/preprocess/data'
 cost_num = 3
 
 alpha = 0.99
@@ -209,14 +209,7 @@ def pretrain(net, ema_net, optimizer, lab_loader, unlab_loader, test_loader, tes
     iter_num = 0
     DICE = DiceLoss(nclass=2)
     sub_bs = int(batch_size/2)
-    
-    #val_dice, maxdice1, max_flag = test(net, net, test_loader, maxdice1, task_id=1)
-    #val_dice_la, maxdice1_la, max_flag_la = test(net, net, test_loader_la, maxdice1_la, task_id=2)
-    #val_dice_sp, maxdice1_sp, max_flag_sp = test(net, net, test_loader_sp, maxdice1_sp, task_id=3)
-    #val_dice_lt, maxdice1_lt, max_flag_lt = test(net, net, test_loader_lt, maxdice1_lt, task_id=4)    
-    #exit()
-    cnt = 0
-    
+
     for epoch in tqdm(range(start_epoch, pretraining_epochs + 1), ncols=70):
         logging.info('\n')
         """Testing"""
@@ -257,26 +250,7 @@ def pretrain(net, ema_net, optimizer, lab_loader, unlab_loader, test_loader, tes
             la_num = torch.sum(la_idx)
             spleen_num = torch.sum(spleen_idx)
             lungT_num = torch.sum(lungT_idx)
-            
-            '''
-            # cutmix for LungT
-            if lungT_num >= 2:
-                img_lungT = img[lungT_idx]
-                lab_lungT = lab[lungT_idx]
-                lungT_reidx = random.sample(range(0,lungT_num), lungT_num)
-                img_lungT_shuff = img_lungT[lungT_reidx]
-                lab_lungT_shuff = lab_lungT[lungT_reidx]
-                
-                img_mask_lungT, lab_mask_lungT = context_mask(img_lungT, args.mask_ratio)
-                
-                img_lungT_mix = img_lungT * img_mask_lungT + img_lungT_shuff * (1 - img_mask_lungT)
-                lab_lungT_mix = lab_lungT * lab_mask_lungT + lab_lungT_shuff * (1 - lab_mask_lungT)
-                
-                _, output_lungT = net(img_lungT_mix, 4*torch.ones(img_lungT_mix.shape[0]).view(-1))
-                output_lungT_soft = F.softmax(output_lungT, dim=1)  
-                loss_sup_lungT = dice_loss(output_lungT_soft[:,1,:,:,:], lab_lungT_mix == 1) + F.cross_entropy(output_lungT, lab_lungT_mix)
-            '''
-                             
+                                         
 
             # chaos cutmix: pancreas / LA / spleen / LungT mixed together !chaos!
             img_a, img_b = img[:sub_bs], img[sub_bs:]
@@ -317,129 +291,7 @@ def pretrain(net, ema_net, optimizer, lab_loader, unlab_loader, test_loader, tes
             loss_spec_a = dice_loss(a_spec_output_chaos_soft[:,1,:,:,:], lab_spec_a==1)
             loss_spec = (loss_spec_a + loss_spec_b) / 2.
             
-            
-            '''
-            # single task prediction when facing cutmixed data
-            output_chaos_panc, _ = net(img_mix, 1*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_panc = F.softmax(output_chaos_panc, dim=1)    
-            output_chaos_la, _ = net(img_mix, 2*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_la = F.softmax(output_chaos_la, dim=1) 
-            output_chaos_sp, _ = net(img_mix, 3*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_sp = F.softmax(output_chaos_sp, dim=1)                          
-            output_chaos_lt, _ = net(img_mix, 4*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_lt = F.softmax(output_chaos_lt, dim=1) 
-            
-            #print(lab_mix.shape)
-            predictions = output_chaos_soft[:,1,:,:,:] > 0.5
-            pred_panc = output_chaos_soft_panc[:,1,:,:,:] > 0.5
-            pred_la = output_chaos_soft_la[:,1,:,:,:] > 0.5
-            pred_sp = output_chaos_soft_sp[:,1,:,:,:] > 0.5
-            pred_lt = output_chaos_soft_lt[:,1,:,:,:] > 0.5
-            for i in range(lab_mix.shape[0]):
-                image = img_mix[i,0,:,:,:].detach().cpu().data.numpy()
-                label = lab_mix[i].detach().cpu().data.numpy()
-                prediction = predictions[i].detach().cpu().data.numpy()
-                predic_panc = pred_panc[i].detach().cpu().data.numpy()
-                predic_la = pred_la[i].detach().cpu().data.numpy()
-                predic_sp = pred_sp[i].detach().cpu().data.numpy()
-                predic_lt = pred_lt[i].detach().cpu().data.numpy()
-                nib.save(nib.Nifti1Image(prediction.astype(np.float32), np.eye(4)), './CutMix_save_each/' + str(cnt) + "_pred.nii.gz")
-                nib.save(nib.Nifti1Image(image[:].astype(np.float32), np.eye(4)), './CutMix_save_each/' + str(cnt) + "_img.nii.gz")
-                nib.save(nib.Nifti1Image(label[:].astype(np.float32), np.eye(4)), './CutMix_save_each/' + str(cnt) + "_gt.nii.gz")
-                nib.save(nib.Nifti1Image(predic_panc.astype(np.float32), np.eye(4)), './CutMix_save_each/' + str(cnt) + "_panc.nii.gz")
-                nib.save(nib.Nifti1Image(predic_la.astype(np.float32), np.eye(4)), './CutMix_save_each/' + str(cnt) + "_la.nii.gz")
-                nib.save(nib.Nifti1Image(predic_sp.astype(np.float32), np.eye(4)), './CutMix_save_each/' + str(cnt) + "_sp.nii.gz")
-                nib.save(nib.Nifti1Image(predic_lt.astype(np.float32), np.eye(4)), './CutMix_save_each/' + str(cnt) + "_lt.nii.gz")
-                
-                cnt += 1
-            '''
-            
-            '''
-            if lungT_num >= 2:
-                loss = loss_sup + loss_chaos + loss_sup_lungT + loss_spec
-            else:
-                loss = loss_sup + loss_chaos + loss_spec
-            '''
-            
-            
-            
-            
-            
-            '''
-            
-            # single task prediction when facing cutmixed data
-            output_chaos_panc, _ = net(img_mix, 1*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_panc = F.softmax(output_chaos_panc, dim=1)    
-            output_chaos_la, _ = net(img_mix, 2*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_la = F.softmax(output_chaos_la, dim=1) 
-            output_chaos_sp, _ = net(img_mix, 3*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_sp = F.softmax(output_chaos_sp, dim=1)                          
-            output_chaos_lt, _ = net(img_mix, 4*torch.ones(img_mix.shape[0]).view(-1))
-            output_chaos_soft_lt = F.softmax(output_chaos_lt, dim=1) 
-            
-            
-            ema_output_chaos_panc, _ = ema_net(img_mix, 1*torch.ones(img_mix.shape[0]).view(-1))
-            ema_output_chaos_soft_panc = F.softmax(ema_output_chaos_panc, dim=1)    
-            ema_output_chaos_la, _ = ema_net(img_mix, 2*torch.ones(img_mix.shape[0]).view(-1))
-            ema_output_chaos_soft_la = F.softmax(ema_output_chaos_la, dim=1) 
-            ema_output_chaos_sp, _ = ema_net(img_mix, 3*torch.ones(img_mix.shape[0]).view(-1))
-            ema_output_chaos_soft_sp = F.softmax(ema_output_chaos_sp, dim=1)                          
-            ema_output_chaos_lt, _ = ema_net(img_mix, 4*torch.ones(img_mix.shape[0]).view(-1))
-            ema_output_chaos_soft_lt = F.softmax(ema_output_chaos_lt, dim=1) 
-            ema_output_chaos_all, _ = ema_net(img_mix, 5*torch.ones(img_mix.shape[0]).view(-1))
-            ema_output_chaos_soft_all = F.softmax(ema_output_chaos_all, dim=1) 
-
-            
-            #print(lab_mix.shape)
-            predictions = output_chaos_soft[:,1,:,:,:] > 0.5
-            pred_panc = output_chaos_soft_panc[:,1,:,:,:] > 0.5
-            pred_la = output_chaos_soft_la[:,1,:,:,:] > 0.5
-            pred_sp = output_chaos_soft_sp[:,1,:,:,:] > 0.5
-            pred_lt = output_chaos_soft_lt[:,1,:,:,:] > 0.5
-            
-            ema_predictions = ema_output_chaos_soft_all[:,1,:,:,:] > 0.5
-            ema_pred_panc = ema_output_chaos_soft_panc[:,1,:,:,:] > 0.5
-            ema_pred_la = ema_output_chaos_soft_la[:,1,:,:,:] > 0.5
-            ema_pred_sp = ema_output_chaos_soft_sp[:,1,:,:,:] > 0.5
-            ema_pred_lt = ema_output_chaos_soft_lt[:,1,:,:,:] > 0.5
-            
-            for i in range(lab_mix.shape[0]):
-                image = img_mix[i,0,:,:,:].detach().cpu().data.numpy()
-                label = lab_mix[i].detach().cpu().data.numpy()
-                prediction = predictions[i].detach().cpu().data.numpy()
-                predic_panc = pred_panc[i].detach().cpu().data.numpy()
-                predic_la = pred_la[i].detach().cpu().data.numpy()
-                predic_sp = pred_sp[i].detach().cpu().data.numpy()
-                predic_lt = pred_lt[i].detach().cpu().data.numpy()
-                
-                ema_prediction = ema_predictions[i].detach().cpu().data.numpy()
-                ema_predic_panc = ema_pred_panc[i].detach().cpu().data.numpy()
-                ema_predic_la = ema_pred_la[i].detach().cpu().data.numpy()
-                ema_predic_sp = ema_pred_sp[i].detach().cpu().data.numpy()
-                ema_predic_lt = ema_pred_lt[i].detach().cpu().data.numpy()
-                
-                nib.save(nib.Nifti1Image(prediction.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "Uni_pred.nii.gz")
-                nib.save(nib.Nifti1Image(image[:].astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "_img.nii.gz")
-                nib.save(nib.Nifti1Image(label[:].astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "_gt.nii.gz")
-                nib.save(nib.Nifti1Image(predic_panc.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "Uni_panc.nii.gz")
-                nib.save(nib.Nifti1Image(predic_la.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "Uni_la.nii.gz")
-                nib.save(nib.Nifti1Image(predic_sp.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "Uni_sp.nii.gz")
-                nib.save(nib.Nifti1Image(predic_lt.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "Uni_lt.nii.gz")
-                
-                nib.save(nib.Nifti1Image(ema_prediction.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "dod_pred.nii.gz")
-                nib.save(nib.Nifti1Image(ema_predic_panc.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "dod_panc.nii.gz")
-                nib.save(nib.Nifti1Image(ema_predic_la.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "dod_la.nii.gz")
-                nib.save(nib.Nifti1Image(ema_predic_sp.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "dod_sp.nii.gz")
-                nib.save(nib.Nifti1Image(ema_predic_lt.astype(np.float32), np.eye(4)), './CutMix_Dod_UniSeMiv2/' + str(cnt) + "dod_lt.nii.gz")
-                
-                cnt += 1
-            
-            
-            '''
-            
-            
             loss = loss_sup + loss_chaos + loss_spec
-            
 
             optimizer.zero_grad()
             loss.backward()
@@ -541,10 +393,6 @@ def train(net, ema_net, optimizer, lab_loader, unlab_loader, test_loader):
             img_un = img_un.cuda()
             bs_lb = img_lb.shape[0]
             bs_un = img_un.shape[0]
-
-            # student prediction
-            #img_input = torch.cat((img_lb, img_un), dim=0)
-            #task_id = torch.cat((task_id_lb, task_id_un), dim=0)
             
             output_stu, _ = net(img_lb, task_id_lb)
             output_stu_soft = F.softmax(output_stu, dim=1)
@@ -652,14 +500,12 @@ if __name__ == '__main__':
     set_random_seed(2333)
     net, ema_net, optimizer, lab_loader, unlab_loader, test_loader, test_loader_la, test_loader_sp, test_loader_lt = get_model_and_dataloader()
     # First step: pretrain
-    load_net_opt(ema_net, optimizer, './20Iter_final_results/pretrain/820.pth')
-    load_net_opt(net, optimizer, '/data/userdisk1/qjzeng/semi_seg/UniSSMv5/constrain_20_bi/pretrain_/450.pth')
     pretrain(net, ema_net, optimizer, lab_loader, unlab_loader, test_loader, test_loader_la, test_loader_sp, test_loader_lt, start_epoch=1)
     
     
     # Second step: unlabeled data mining
-    #load_net_opt(net, optimizer, './First_B_10Panc_La_Spleen_B10LungT/pretrain/570.pth')
-    #load_net_opt(ema_net, optimizer, './First_B_10Panc_La_Spleen_B10LungT/pretrain/570.pth')
+    #load_net_opt(net, optimizer, '***')
+    #load_net_opt(ema_net, optimizer, '***')
     #net.module.precls_conv.requires_grad = False
     #net.module.controller.requires_grad = False
     #train(net, ema_net, optimizer, lab_loader, unlab_loader, test_loader)
