@@ -23,9 +23,9 @@ from batchgenerators.transforms.resample_transforms import SimulateLowResolution
 
 
 def get_dataset_path():
-    files = ['train_lab_10_.txt', 'train_unlab_10_.txt', 'test.txt', 'test_la.txt', 'test_spleen.txt', 'test_lung.txt',\
+    files = ['train_lab_20.txt', 'train_unlab_20.txt', 'test.txt', 'test_la.txt', 'test_spleen.txt', 'test_lung.txt',\
              'panc_lab.txt', 'la_lab.txt', 'sp_lab.txt', 'lt_lab.txt']
-    return ['../UniSSM/data_lists/unidataset/'+ f for f in files]
+    return ['./datalist/'+ f for f in files]
 
 
 class Pancreas(Dataset):
