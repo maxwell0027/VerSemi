@@ -8,8 +8,3 @@ lung_010
 lung_014
 lung_015
 lung_016
-lung_018
-lung_020
-lung_022
-lung_074
-lung_075
