@@ -10,15 +10,3 @@ data0009
 data0010
 data0011
 data0012
-data0013
-data0014
-data0015
-data0016
-data0017
-data0018
-data0019
-data0020
-data0021
-data0022
-data0023
-data0024
