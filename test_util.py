@@ -94,9 +94,8 @@ def test_single_case(net, ema_net, image, task_id, stride_xy, stride_z, patch_si
                 test_patch = torch.from_numpy(test_patch).cuda()
 
                 out, _ = net(test_patch, torch.tensor([int(task_id)]))
-                out_, _ = ema_net(test_patch, torch.tensor([int(task_id)]))
                 
-                y1 = (out+out_)/2.
+                y1 = out
                 y = F.softmax(y1, dim=1)
                 y = y.cpu().data.numpy()
                 y = y[0, :, :, :, :]
@@ -144,7 +143,7 @@ def calculate_metric_percase(pred, gt):
     return dice, jc, hd, asd
 
 
-def test_calculate_metric(net, ema_net, test_dataset, task_id, num_classes=2, save_result=False, test_save_path='./CutMix_Dod_UniSeMiv2'):
+def test_calculate_metric(net, ema_net, test_dataset, task_id, num_classes=2, save_result=False, test_save_path='./save_dir'):
     net.eval()
     image_list = test_dataset.image_list
 
@@ -158,13 +157,8 @@ def test_calculate_metric(net, ema_net, test_dataset, task_id, num_classes=2, sa
     return avg_metric
 
 
-def test_calculate_metric_LA(net, ema_net, test_dataset, num_classes=2, save_result=False, test_save_path='./save'):
+def test_calculate_metric_LA(net, ema_net, test_dataset, num_classes=2, save_result=False, test_save_path='./save_dir'):
     net.eval()
-    # with open("/home/xiangjinyi/semi_supervised/alnet/data_lists_cora/LA_dataset/test_whole.list", 'r') as f:
-    #     image_list = f.readlines()
-    # image_list = [item.replace('\n', '') for item in image_list]
-    # image_list = [os.path.join("../LA_dataset", item, "mri_norm2.h5") for item in image_list]
-
     image_list = test_dataset.image_list
     avg_metric = test_all_case(net, ema_net, image_list, num_classes=num_classes,
                                patch_size=(96, 96, 96), stride_xy=18, stride_z=4,
