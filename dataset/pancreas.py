@@ -24,7 +24,7 @@ from batchgenerators.transforms.resample_transforms import SimulateLowResolution
 
 def get_dataset_path():
     files = ['train_lab_20.txt', 'train_unlab_20.txt', 'test.txt', 'test_la.txt', 'test_spleen.txt', 'test_lung.txt',\
-             'panc_lab.txt', 'la_lab.txt', 'sp_lab.txt', 'lt_lab.txt']
+             'panc_lab_20.txt', 'la_lab_20.txt', 'sp_lab_20.txt', 'lt_lab_20.txt']
     return ['./datalist/'+ f for f in files]
 
 
